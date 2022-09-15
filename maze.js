@@ -11,10 +11,16 @@ const maze = [
   ["a", "a", "d", "a", "a", "d", "a", "c", "d", "d", "a", "a"],
   ["a", "d", "d", "d", "a", "d", "c", "c", "a", "d", "e", "b"],
   ["a", "a", "a", "a", "a", "a", "a", "a", "a", "a", "a", "a"],
+  ["a", "a", "a", "a", "a", "a", "a", "a", "a", "a", "a", "a"],
 ];
 
+// START HERE: Notice that you have to specify the starting point here.
 findPath([{ row: 0, col: 1 }]);
 
+/*
+  Strategy: For each square, we will try to move to Bottom, Right, Left and Up recursively, and store the path for each recursion.
+  If a recursion find a path that contain another B, it means the solution was found, then we print the path.
+*/
 function findPath(path) {
   const { row, col } = path[path.length - 1];
 
@@ -24,27 +30,28 @@ function findPath(path) {
     return true;
   }
 
-  move({ row: row - 1, col }, path);
   move({ row: row + 1, col }, path);
-  move({ row, col: col - 1 }, path);
   move({ row, col: col + 1 }, path);
+  move({ row, col: col - 1 }, path);
+  move({ row: row - 1, col }, path);
 }
 
-function move({ row: nextRow, col: nextCol }, path) {
-  if (nextRow < 0 || nextCol < 0) return false;
+/*
+  If a move is valid, inserts the move in the path array and call the recursion with the the position in the maze.
+*/
+function move({ row, col }, path) {
+  // prevent array out of bounds for the maze
+  if (row < 0 || col < 0 || row > maze.length - 1 || col > maze[0].length - 1)
+    return false;
 
-  if (pathAlreadyExists({ nextRow, nextCol }, path)) return false;
-
-  if (!isThreeLetterRuleValid({ nextRow, nextCol }, path)) return false;
-
-  if (
-    !isSiblingOrEqualLetter({ nextRow, nextCol }, path) &&
-    maze[nextRow][nextCol] !== "b"
-  )
+  // Validate Move
+  if (pathAlreadyExists({ row, col }, path)) return false;
+  if (!isThreeLetterRuleValid({ row, col }, path)) return false;
+  if (!isConsecutiveLetter({ row, col }, path) && maze[row][col] !== "b")
     return false;
 
   const newPath = [...path];
-  newPath.push({ row: nextRow, col: nextCol });
+  newPath.push({ row, col });
   findPath(newPath);
   return true;
 }
@@ -53,8 +60,8 @@ function move({ row: nextRow, col: nextCol }, path) {
   Check if the movement that you are trying to do is already in the path.
   Nodes that are already visited, can not be visited again.
 */
-function pathAlreadyExists({ nextRow, nextCol }, path) {
-  return path.some((tuple) => tuple.row === nextRow && tuple.col === nextCol);
+function pathAlreadyExists({ row, col }, path) {
+  return path.some((tuple) => tuple.row === row && tuple.col === col);
 }
 
 /*
@@ -62,30 +69,30 @@ function pathAlreadyExists({ nextRow, nextCol }, path) {
   Only movements through siblings letters or equal letters are valid within the maze.
   Example: Leter D can only move to letters C, D or E
 */
-function isSiblingOrEqualLetter({ nextRow, nextCol }, path) {
-  const letterOrder = ["a", "b", "c", "d", "e"];
-  const currentRow = path[path.length - 1].row;
-  const currentCol = path[path.length - 1].col;
-  const currentLetter = maze[currentRow][currentCol];
+function isConsecutiveLetter({ row: nextRow, col: nextCol }, path) {
+  const letters = ["a", "b", "c", "d", "e"];
+  const { row: prevRow, col: prevCol } = path[path.length - 1];
+
+  const prevLetter = maze[prevRow][prevCol];
   const nextLetter = maze[nextRow][nextCol];
 
-  const currentLetterIndex = letterOrder.indexOf(currentLetter);
-  const nextLetterIndex = letterOrder.indexOf(nextLetter);
+  const prevLetterIndex = letters.indexOf(prevLetter);
+  const nextLetterIndex = letters.indexOf(nextLetter);
 
-  if (letterOrder[currentLetterIndex] === letterOrder[nextLetterIndex]) {
+  if (letters[prevLetterIndex] === letters[nextLetterIndex]) {
     return true;
   }
 
   if (
-    currentLetterIndex > 0 &&
-    letterOrder[currentLetterIndex - 1] === letterOrder[nextLetterIndex]
+    prevLetterIndex > 0 &&
+    letters[prevLetterIndex - 1] === letters[nextLetterIndex]
   ) {
     return true;
   }
 
   if (
-    currentLetterIndex < letterOrder.length - 1 &&
-    letterOrder[currentLetterIndex + 1] === letterOrder[nextLetterIndex]
+    prevLetterIndex < letters.length - 1 &&
+    letters[prevLetterIndex + 1] === letters[nextLetterIndex]
   ) {
     return true;
   }
@@ -96,64 +103,43 @@ function isSiblingOrEqualLetter({ nextRow, nextCol }, path) {
 /*
   You can only walk in three letters at once, unless it's the letter B
 */
-function isThreeLetterRuleValid({ nextRow, nextCol }, path) {
-  if (maze[nextRow][nextCol] === "b") return true;
-  if (path.length == 1) return true;
+function isThreeLetterRuleValid({ row, col }, path) {
+  try {
+    if (maze[row][col] === "b" || path.length == 1) return true;
+  } catch (error) {
+    console.log(error);
+  }
+
+  const areLastThreeLettersInPathEqual =
+    maze[path[path.length - 1].row][path[path.length - 1].col] ===
+      maze[path[path.length - 2].row][path[path.length - 2].col] &&
+    maze[path[path.length - 2].row][path[path.length - 2].col] ===
+      maze[path[path.length - 3].row][path[path.length - 3].col];
+
+  const isCurrentLetterAndLastLetterEqual =
+    maze[row][col] ===
+    maze[path[path.length - 1].row][path[path.length - 1].col];
 
   // Fails if there are 4 equal consecutive letters
   if (
     path.length > 3 &&
-    maze[nextRow][nextCol] ===
-      maze[path[path.length - 1].row][path[path.length - 1].col] &&
-    maze[path[path.length - 1].row][path[path.length - 1].col] ===
-      maze[path[path.length - 2].row][path[path.length - 2].col] &&
-    maze[path[path.length - 2].row][path[path.length - 2].col] ===
-      maze[path[path.length - 3].row][path[path.length - 3].col]
+    isCurrentLetterAndLastLetterEqual &&
+    areLastThreeLettersInPathEqual
   ) {
     return false;
   }
 
-  // A path letter must be different then the privious 3 path letters
+  // A path letter must be different then the previous 3 path letters
   if (
     path.length > 3 &&
-    maze[nextRow][nextCol] !==
-      maze[path[path.length - 1].row][path[path.length - 1].col] &&
-    maze[path[path.length - 1].row][path[path.length - 1].col] ===
-      maze[path[path.length - 2].row][path[path.length - 2].col] &&
-    maze[path[path.length - 2].row][path[path.length - 2].col] ===
-      maze[path[path.length - 3].row][path[path.length - 3].col]
+    !isCurrentLetterAndLastLetterEqual &&
+    areLastThreeLettersInPathEqual
   ) {
     return true;
   }
 
   // The letter you will move must be equal to the previous letter
-  if (
-    maze[nextRow][nextCol] ===
-    maze[path[path.length - 1].row][path[path.length - 1].col]
-  ) {
-    return true;
-  }
-
-  return false;
-}
-
-/*
-  Returns true if the last three movements in the path have the same letter in the maze.
-  A letter cannot be repeated more than 3 times.
-*/
-function isLastThreeLettersEqual({ nextRow, nextCol }, path) {
-  if (path.length < 3) {
-    return false;
-  }
-
-  if (
-    maze[nextRow][nextCol] ===
-      maze[path[path.length - 1].row][path[path.length - 1].col] &&
-    maze[nextRow][nextCol] ===
-      maze[path[path.length - 2].row][path[path.length - 2].col] &&
-    maze[nextRow][nextCol] ===
-      maze[path[path.length - 3].row][path[path.length - 3].col]
-  ) {
+  if (isCurrentLetterAndLastLetterEqual) {
     return true;
   }
 
